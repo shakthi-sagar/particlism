@@ -1,10 +1,46 @@
-.canvas{
+.canvas-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.canvas {
     width: 100%;
     height: 100%;
     background-color: #000000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: block;
     position: relative;
     overflow: hidden;
+}
+
+.controls {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.control-button {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.control-button:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.8);
+    transform: scale(1.1);
 }
