@@ -35,20 +35,20 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
             color: newColor,
             number: 200,
             attractions: colorsConfig.reduce((acc, config) => {
-                acc[config.color] = Math.floor((Math.random() * 200) - 100) / 50;
+                acc[config.color] = Math.floor((Math.random() * 200) - 100) / 100;
                 return acc;
             }, {} as { [key: string]: number })
         };
 
         // Add self-attraction for the new color
-        newConfig.attractions[newColor] = Math.floor((Math.random() * 200) - 100) / 50;
+        newConfig.attractions[newColor] = Math.floor((Math.random() * 200) - 100) / 100;
 
         // Update existing configs to include attraction to the new color
         const updatedConfigs = colorsConfig.map(config => ({
             ...config,
             attractions: {
                 ...config.attractions,
-                [newColor]: Math.floor((Math.random() * 200) - 100) / 50
+                [newColor]: Math.floor((Math.random() * 200) - 100) / 100
             }
         }));
 
@@ -58,10 +58,10 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
 
     const removeColor = (index: number) => {
         if (colorsConfig.length <= 1) return; // Don't remove the last color
-        
+
         const colorToRemove = colorsConfig[index].color;
         const newConfig = colorsConfig.filter((_, i) => i !== index);
-        
+
         // Remove references to the deleted color from other configs
         const cleanedConfig = newConfig.map(config => ({
             ...config,
@@ -69,7 +69,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                 Object.entries(config.attractions).filter(([key]) => key !== colorToRemove)
             )
         }));
-        
+
         setColorsConfig(cleanedConfig);
     };
 
@@ -84,7 +84,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                     <X size={18} />
                 </button>
             </div>
-            
+
             <div className={styles.content}>
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>
@@ -98,7 +98,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                                     <div className={styles.colorPreview} style={{ backgroundColor: config.color }}></div>
                                     <span className={styles.colorLabel}>Type {index + 1}</span>
                                     {colorsConfig.length > 1 && (
-                                        <button 
+                                        <button
                                             className={styles.removeButton}
                                             onClick={() => removeColor(index)}
                                             title="Remove this particle type"
@@ -107,7 +107,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                                         </button>
                                     )}
                                 </div>
-                                
+
                                 <div className={styles.controlGroup}>
                                     <label className={styles.label}>
                                         <span>Color</span>
@@ -121,7 +121,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                                             <span className={styles.colorValue}>{config.color}</span>
                                         </div>
                                     </label>
-                                    
+
                                     <label className={styles.label}>
                                         <span>Particle Count: {config.number}</span>
                                         <div className={styles.sliderWrapper}>
