@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "particlism",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-07-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "CONFIGS",
+      "id": "50b32956e2b9437c94ba2c162a971818"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

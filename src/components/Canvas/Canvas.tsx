@@ -1,23 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Play, Pause, RotateCcw, Shuffle } from "lucide-react";
-import { randomColor, randomForce } from "@/particleConfig";
+import { Check, Link, LoaderCircle, Pause, Play, RotateCcw, Shuffle } from "lucide-react";
+import { ColorConfig, createRandomConfig } from "@/lib/particles";
 import styles from "./Canvas.module.scss";
 
 const MIN_DISTANCE = 8;
 const MAX_SPEED = 3;
 const INTERACTION_DISTANCE = 80;
 
-interface ColorConfig {
-    color: string;
-    number: number;
-    attractions: { [key: string]: number };
-}
-
 interface CanvasProps {
     width: number;
     height: number;
     colorsConfig: ColorConfig[];
     setColorsConfig: (config: ColorConfig[]) => void;
+    onShare: () => void;
+    shareStatus: "idle" | "sharing" | "copied" | "error";
 }
 
 interface Atom {
@@ -28,7 +24,14 @@ interface Atom {
     color: string;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsConfig }) => {
+const Canvas: React.FC<CanvasProps> = ({
+    width,
+    height,
+    colorsConfig,
+    setColorsConfig,
+    onShare,
+    shareStatus
+}) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [atoms, setAtoms] = useState<Atom[]>([]);
     const [isRunning, setIsRunning] = useState(true);
@@ -214,14 +217,10 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsC
     };
 
     const randomize = () => {
-        const colors: string[] = [];
-        while (colors.length < colorsConfig.length) colors.push(randomColor(colors));
-
-        setColorsConfig(colors.map((color, index) => ({
-            color,
-            number: colorsConfig[index].number,
-            attractions: Object.fromEntries(colors.map(otherColor => [otherColor, randomForce()]))
-        })));
+        setColorsConfig(createRandomConfig(
+            colorsConfig.length,
+            colorsConfig.map(config => config.number)
+        ));
     };
 
     return (
@@ -243,10 +242,23 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsC
                     <RotateCcw size={18} />
                 </button>
             </div>
-            <button className={styles['randomize-button']} onClick={randomize}>
-                <Shuffle size={16} />
-                Randomize
-            </button>
+            <div className={styles["bottom-controls"]}>
+                <button className={styles["action-button"]} onClick={randomize}>
+                    <Shuffle size={16} />
+                    Randomize
+                </button>
+                <button
+                    className={styles["action-button"]}
+                    onClick={onShare}
+                    disabled={shareStatus === "sharing"}
+                >
+                    {shareStatus === "sharing" ? <LoaderCircle size={16} /> :
+                        shareStatus === "copied" ? <Check size={16} /> : <Link size={16} />}
+                    {shareStatus === "sharing" ? "Sharing…" :
+                        shareStatus === "copied" ? "Link copied" :
+                        shareStatus === "error" ? "Try sharing again" : "Share"}
+                </button>
+            </div>
         </div>
     );
 };

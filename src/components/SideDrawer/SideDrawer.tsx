@@ -1,20 +1,18 @@
 import React from "react";
 import { X, Plus, Trash2, Palette, Sliders } from "lucide-react";
-import { randomColor, randomForce } from "@/particleConfig";
+import { ColorConfig, randomColor, randomForce, recolorConfig } from "@/lib/particles";
 import styles from "./SideDrawer.module.scss";
 
 interface SideDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    colorsConfig: { color: string; number: number; attractions: { [key: string]: number } }[];
-    setColorsConfig: (newConfig: { color: string; number: number; attractions: { [key: string]: number } }[]) => void;
+    colorsConfig: ColorConfig[];
+    setColorsConfig: (newConfig: ColorConfig[]) => void;
 }
 
 const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, setColorsConfig }) => {
     const handleColorChange = (index: number, value: string) => {
-        const newConfig = [...colorsConfig];
-        newConfig[index].color = value;
-        setColorsConfig(newConfig);
+        setColorsConfig(recolorConfig(colorsConfig, index, value));
     };
 
     const handleNumberChange = (index: number, value: number) => {
@@ -79,7 +77,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                     <Sliders size={20} />
                     <h2>Simulation Controls</h2>
                 </div>
-                <button onClick={onClose} className={styles.closeButton}>
+                <button onClick={onClose} className={styles.closeButton} aria-label="Close simulation controls">
                     <X size={18} />
                 </button>
             </div>

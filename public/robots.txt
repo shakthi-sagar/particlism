@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://particlism.shadster.dev/sitemap.xml
