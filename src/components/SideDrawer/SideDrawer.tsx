@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { X, Plus, Trash2, Palette, Sliders, RotateCcw } from "lucide-react";
+import React from "react";
+import { X, Plus, Trash2, Palette, Sliders } from "lucide-react";
+import { randomColor, randomForce } from "@/particleConfig";
 import styles from "./SideDrawer.module.scss";
 
 interface SideDrawerProps {
@@ -10,8 +11,6 @@ interface SideDrawerProps {
 }
 
 const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, setColorsConfig }) => {
-    const [newColor, setNewColor] = useState("#ffffff");
-
     const handleColorChange = (index: number, value: string) => {
         const newConfig = [...colorsConfig];
         newConfig[index].color = value;
@@ -31,29 +30,29 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
     };
 
     const addColor = () => {
+        const newColor = randomColor(colorsConfig.map(config => config.color));
         const newConfig = {
             color: newColor,
             number: 200,
             attractions: colorsConfig.reduce((acc, config) => {
-                acc[config.color] = Math.floor((Math.random() * 200) - 100) / 100;
+                acc[config.color] = randomForce();
                 return acc;
             }, {} as { [key: string]: number })
         };
 
         // Add self-attraction for the new color
-        newConfig.attractions[newColor] = Math.floor((Math.random() * 200) - 100) / 100;
+        newConfig.attractions[newColor] = randomForce();
 
         // Update existing configs to include attraction to the new color
         const updatedConfigs = colorsConfig.map(config => ({
             ...config,
             attractions: {
                 ...config.attractions,
-                [newColor]: Math.floor((Math.random() * 200) - 100) / 100
+                [newColor]: randomForce()
             }
         }));
 
         setColorsConfig([...updatedConfigs, newConfig]);
-        setNewColor("#ffffff");
     };
 
     const removeColor = (index: number) => {
@@ -181,18 +180,13 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, colorsConfig, 
                         Add New Type
                     </h3>
                     <div className={styles.addColor}>
-                        <div className={styles.addColorInput}>
-                            <input
-                                type="color"
-                                value={newColor}
-                                onChange={(e) => setNewColor(e.target.value)}
-                                className={styles.colorInput}
-                            />
-                            <span className={styles.addColorLabel}>Choose Color</span>
-                        </div>
-                        <button onClick={addColor} className={styles.addButton}>
+                        <button
+                            onClick={addColor}
+                            className={styles.addButton}
+                            disabled={colorsConfig.length >= 10}
+                        >
                             <Plus size={16} />
-                            Add Particle Type
+                            {colorsConfig.length >= 10 ? "10 Type Maximum" : "Add Particle Type"}
                         </button>
                     </div>
                 </div>

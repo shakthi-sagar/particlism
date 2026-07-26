@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Play, Pause, RotateCcw, Settings } from "lucide-react";
+import { Play, Pause, RotateCcw, Shuffle } from "lucide-react";
+import { randomColor, randomForce } from "@/particleConfig";
 import styles from "./Canvas.module.scss";
+
+const MIN_DISTANCE = 8;
+const MAX_SPEED = 3;
+const INTERACTION_DISTANCE = 80;
 
 interface ColorConfig {
     color: string;
@@ -52,47 +57,119 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsC
         setAtoms(newAtoms);
     }
 
-    const rule = (atoms1: Atom[], atoms2: Atom[], g: number) => {
-        if (canvasRef.current) {
-            for (let i = 0; i < atoms1.length; i++) {
-                let fx = 0;
-                let fy = 0;
-                for (let j = 0; j < atoms2.length; j++) {
-                    const a = atoms1[i];
-                    const b = atoms2[j];
-                    const dx = a.x - b.x;
-                    const dy = a.y - b.y;
-                    const d = Math.sqrt(dx * dx + dy * dy);
-                    if (d > 0 && d < 80) {
-                        // Physics: positive g = attraction, negative g = repulsion
-                        const F = (g * 1) / d;
-                        // dx = a.x - b.x is vector from b to a
-                        // For attraction (positive g): force should pull a towards b (opposite direction)
-                        // For repulsion (negative g): force should push a away from b (same direction)
-                        fx += F * (-dx); // Flip direction for correct physics
-                        fy += F * (-dy);
-                    }
-                }
-                atoms1[i].vx = (atoms1[i].vx + fx) * 0.5;
-                atoms1[i].vy = (atoms1[i].vy + fy) * 0.5;
-                atoms1[i].x += atoms1[i].vx;
-                atoms1[i].y += atoms1[i].vy;
+    const buildGrid = () => {
+        // ponytail: uniform grid can degrade in one huge cluster; use a quadtree if that becomes measurable.
+        const grid = new Map<string, number[]>();
+        atoms.forEach((atom, index) => {
+            const key = `${Math.floor(atom.x / INTERACTION_DISTANCE)},${Math.floor(atom.y / INTERACTION_DISTANCE)}`;
+            const cell = grid.get(key);
+            if (cell) cell.push(index);
+            else grid.set(key, [index]);
+        });
+        return grid;
+    };
 
-                // Boundary collision detection
-                if (atoms1[i].x <= 0 || atoms1[i].x >= width) { atoms1[i].vx *= -1; }
-                if (atoms1[i].y <= 0 || atoms1[i].y >= height) { atoms1[i].vy *= -1; }
+    const nearbyCellKeys = (atom: Atom) => {
+        const columns = Math.max(1, Math.ceil(width / INTERACTION_DISTANCE));
+        const rows = Math.max(1, Math.ceil(height / INTERACTION_DISTANCE));
+        const cellX = Math.floor(atom.x / INTERACTION_DISTANCE);
+        const cellY = Math.floor(atom.y / INTERACTION_DISTANCE);
+        const keys = new Set<string>();
+
+        for (let x = cellX - 1; x <= cellX + 1; x++) {
+            for (let y = cellY - 1; y <= cellY + 1; y++) {
+                keys.add(`${(x % columns + columns) % columns},${(y % rows + rows) % rows}`);
             }
         }
-    }
+        return Array.from(keys);
+    };
+
+    const applyForces = (grid: Map<string, number[]>) => {
+        const configs = Object.fromEntries(colorsConfig.map(config => [config.color, config]));
+
+        atoms.forEach((atom, index) => {
+            let fx = 0;
+            let fy = 0;
+
+            for (const key of nearbyCellKeys(atom)) {
+                    for (const otherIndex of grid.get(key) || []) {
+                        if (otherIndex === index) continue;
+                        const other = atoms[otherIndex];
+                        let dx = atom.x - other.x;
+                        let dy = atom.y - other.y;
+                        dx -= Math.round(dx / width) * width;
+                        dy -= Math.round(dy / height) * height;
+                        const distance = Math.hypot(dx, dy);
+                        if (distance === 0 || distance >= INTERACTION_DISTANCE) continue;
+
+                        const attraction = configs[atom.color]?.attractions[other.color] || 0;
+                        const force = distance < MIN_DISTANCE ? -1 : attraction;
+                        fx -= force * dx / distance;
+                        fy -= force * dy / distance;
+                    }
+            }
+
+            atom.vx += fx;
+            atom.vy += fy;
+        });
+    };
+
+    const moveAtoms = () => {
+        atoms.forEach(atom => {
+            atom.vx *= 0.5;
+            atom.vy *= 0.5;
+            const speed = Math.hypot(atom.vx, atom.vy);
+            if (speed > MAX_SPEED) {
+                atom.vx *= MAX_SPEED / speed;
+                atom.vy *= MAX_SPEED / speed;
+            }
+
+            atom.x += atom.vx;
+            atom.y += atom.vy;
+            atom.x = (atom.x % width + width) % width;
+            atom.y = (atom.y % height + height) % height;
+        });
+
+        const grid = buildGrid();
+        for (let i = 0; i < atoms.length; i++) {
+            for (const key of nearbyCellKeys(atoms[i])) {
+                    for (const j of grid.get(key) || []) {
+                        if (j <= i) continue;
+                let dx = atoms[j].x - atoms[i].x;
+                let dy = atoms[j].y - atoms[i].y;
+                dx -= Math.round(dx / width) * width;
+                dy -= Math.round(dy / height) * height;
+                let distance = Math.hypot(dx, dy);
+                if (distance >= MIN_DISTANCE) continue;
+                if (distance === 0) {
+                    dx = 1;
+                    dy = 0;
+                    distance = 1;
+                }
+
+                const correction = (MIN_DISTANCE - distance) / (2 * distance);
+                atoms[i].x -= dx * correction;
+                atoms[i].y -= dy * correction;
+                atoms[j].x += dx * correction;
+                atoms[j].y += dy * correction;
+                    }
+            }
+        }
+        atoms.forEach(atom => {
+            atom.x = (atom.x % width + width) % width;
+            atom.y = (atom.y % height + height) % height;
+        });
+    };
 
     // Initialize atoms when colorsConfig changes
     useEffect(() => {
+        if (width <= 0 || height <= 0) return;
         resetSimulation();
-    }, [colorsConfig]);
+    }, [colorsConfig, width, height]);
 
     // Main simulation loop
     useEffect(() => {
-        if (!isRunning || atoms.length === 0) return;
+        if (!isRunning || atoms.length === 0 || width <= 0 || height <= 0) return;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -103,23 +180,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsC
         const update = () => {
             if (!isRunning) return;
 
-            // Group atoms by color for efficiency
-            const atomsByColor = colorsConfig.reduce((acc, config) => {
-                acc[config.color] = atoms.filter(atom => atom.color === config.color);
-                return acc;
-            }, {} as Record<string, Atom[]>);
-
-            // Update physics for each color pair (including self-attraction)
-            colorsConfig.forEach(config1 => {
-                colorsConfig.forEach(config2 => {
-                    const atoms1 = atomsByColor[config1.color];
-                    const atoms2 = atomsByColor[config2.color];
-                    const attraction = config1.attractions[config2.color] || 0;
-                    if (atoms1 && atoms2) {
-                        rule(atoms1, atoms2, attraction);
-                    }
-                });
-            });
+            applyForces(buildGrid());
+            moveAtoms();
 
             // Clear and redraw
             ctx.clearRect(0, 0, width, height);
@@ -151,6 +213,17 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsC
         setIsRunning(!isRunning);
     };
 
+    const randomize = () => {
+        const colors: string[] = [];
+        while (colors.length < colorsConfig.length) colors.push(randomColor(colors));
+
+        setColorsConfig(colors.map((color, index) => ({
+            color,
+            number: colorsConfig[index].number,
+            attractions: Object.fromEntries(colors.map(otherColor => [otherColor, randomForce()]))
+        })));
+    };
+
     return (
         <div className={styles['canvas-container']}>
             <canvas className={styles['canvas']} ref={canvasRef} width={width} height={height}/>
@@ -170,6 +243,10 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, colorsConfig, setColorsC
                     <RotateCcw size={18} />
                 </button>
             </div>
+            <button className={styles['randomize-button']} onClick={randomize}>
+                <Shuffle size={16} />
+                Randomize
+            </button>
         </div>
     );
 };

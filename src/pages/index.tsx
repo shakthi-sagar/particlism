@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Settings } from "lucide-react";
 import Canvas from "@/components/Canvas/Canvas";
 import SideDrawer from "@/components/SideDrawer/SideDrawer";
+import { randomColor, randomForce } from "@/particleConfig";
 import styles from "../styles/Home.module.scss";
 
 interface ColorConfig {
@@ -11,30 +12,74 @@ interface ColorConfig {
     attractions: { [key: string]: number };
 }
 
+const decodeConfig = (value: string): ColorConfig[] | null => {
+    try {
+        const parsed = JSON.parse(atob(value.replace(/-/g, "+").replace(/_/g, "/")));
+        if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > 10) return null;
+
+        const colors = parsed.map(config => config.color);
+        if (new Set(colors).size !== colors.length) return null;
+
+        return parsed.every(config =>
+            /^#[0-9a-f]{6}$/i.test(config.color) &&
+            Number.isInteger(config.number) && config.number >= 10 && config.number <= 1000 &&
+            config.attractions && typeof config.attractions === "object" &&
+            colors.every((color: string) =>
+                typeof config.attractions[color] === "number" &&
+                config.attractions[color] >= -1 && config.attractions[color] <= 1
+            )
+        ) ? parsed : null;
+    } catch {
+        return null;
+    }
+};
+
+const encodeConfig = (config: ColorConfig[]) =>
+    btoa(JSON.stringify(config)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
 export default function Home() {
     const [width, setWidth] = useState(0);
     const [height, setHeight] = useState(0);
     const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+    const [configReady, setConfigReady] = useState(false);
     const [colorsConfig, setColorsConfig] = useState<ColorConfig[]>([
-        { color: "#ffff00", number: 200, attractions: {} },
-        { color: "#ff0000", number: 200, attractions: {} },
-        { color: "#00ff00", number: 200, attractions: {} }
+        { color: "#e6194b", number: 200, attractions: {} },
+        { color: "#3cb44b", number: 200, attractions: {} },
+        { color: "#ffe119", number: 200, attractions: {} }
     ]);
 
     useEffect(() => {
         setWidth(window.innerWidth);
         setHeight(window.innerHeight);
 
-        // Initialize attraction values for all color pairs (including self-attraction)
-        const updatedConfig = colorsConfig.map(config => ({
-            ...config,
-            attractions: colorsConfig.reduce((acc, otherConfig) => {
-                acc[otherConfig.color] = Math.floor((Math.random() * 200) - 100) / 100;
+        const sharedConfig = decodeConfig(new URLSearchParams(window.location.search).get("config") || "");
+        if (sharedConfig) {
+            setColorsConfig(sharedConfig);
+            setConfigReady(true);
+            return;
+        }
+
+        const colors: string[] = [];
+        while (colors.length < 3) colors.push(randomColor(colors));
+
+        // Randomness runs client-side so server and browser HTML still match.
+        setColorsConfig(colors.map(color => ({
+            color,
+            number: 200,
+            attractions: colors.reduce((acc, otherColor) => {
+                acc[otherColor] = randomForce();
                 return acc;
             }, {} as { [key: string]: number })
-        }));
-        setColorsConfig(updatedConfig);
+        })));
+        setConfigReady(true);
     }, []);
+
+    useEffect(() => {
+        if (!configReady) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set("config", encodeConfig(colorsConfig));
+        window.history.replaceState(null, "", url);
+    }, [colorsConfig, configReady]);
 
     const handleDrawerClose = () => {
         setIsDrawerOpen(false);
